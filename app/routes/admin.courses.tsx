@@ -160,7 +160,9 @@ function CourseRow({
     <tr className="border-b border-border last:border-0">
       <td className="px-4 py-3">
         <div>
-          <span className="text-sm font-medium">{course.title}</span>
+          <Link to={`/instructor/${course.id}`} className="text-sm font-medium hover:underline">
+            {course.title}
+          </Link>
           <p className="text-xs text-muted-foreground">{course.slug}</p>
         </div>
       </td>

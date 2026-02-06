@@ -36,8 +36,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const user = getUserById(currentUserId);
 
-  if (!user || user.role !== UserRole.Instructor) {
-    throw data("Only instructors can access this page.", {
+  if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
+    throw data("Only instructors and admins can access this page.", {
       status: 403,
     });
   }
@@ -53,7 +53,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     throw data("Course not found.", { status: 404 });
   }
 
-  if (course.instructorId !== currentUserId) {
+  if (course.instructorId !== currentUserId && user.role !== UserRole.Admin) {
     throw data("You can only edit your own courses.", { status: 403 });
   }
 
@@ -85,8 +85,8 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   const user = getUserById(currentUserId);
-  if (!user || user.role !== UserRole.Instructor) {
-    throw data("Only instructors can edit lessons.", { status: 403 });
+  if (!user || (user.role !== UserRole.Instructor && user.role !== UserRole.Admin)) {
+    throw data("Only instructors and admins can edit lessons.", { status: 403 });
   }
 
   const courseId = parseInt(params.courseId, 10);
@@ -99,7 +99,7 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("Course not found.", { status: 404 });
   }
 
-  if (course.instructorId !== currentUserId) {
+  if (course.instructorId !== currentUserId && user.role !== UserRole.Admin) {
     throw data("You can only edit your own courses.", { status: 403 });
   }
 
