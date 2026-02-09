@@ -153,8 +153,20 @@ async function seed() {
     .returning()
     .all();
 
+  const [bossy] = db
+    .insert(schema.users)
+    .values({
+      name: "Bossy McBossface",
+      email: "bossy.mcbossface@student.dev",
+      role: UserRole.Student,
+      avatarUrl: "https://api.dicebear.com/9.x/avataaars/svg?seed=bossy",
+      createdAt: daysAgo(40),
+    })
+    .returning()
+    .all();
+
   console.log(
-    `Created ${1 + 2 + students.length} users (1 admin, 2 instructors, ${students.length} students).`
+    `Created ${1 + 2 + students.length + 1} users (1 admin, 2 instructors, ${students.length + 1} students).`
   );
 
   // ─── Categories ───
@@ -1639,7 +1651,7 @@ You've completed the Building REST APIs course. You now have the skills to build
   console.log("Created 5 individual purchases.");
 
   // ─── Teams, Team Members, and Coupons ───
-  // Admin bought 5 team seats for course 2; Olivia and Liam redeemed coupons
+  // Bossy McBossface bought 5 team seats for course 2; Olivia and Liam redeemed coupons
 
   const [team1] = db
     .insert(schema.teams)
@@ -1650,17 +1662,17 @@ You've completed the Building REST APIs course. You now have the skills to build
   db.insert(schema.teamMembers)
     .values({
       teamId: team1.id,
-      userId: admin.id,
+      userId: bossy.id,
       role: TeamMemberRole.Admin,
       createdAt: daysAgo(30),
     })
     .run();
 
-  // Team purchase by admin for course 2 (5 seats)
+  // Team purchase by Bossy McBossface for course 2 (5 seats)
   const [teamPurchase] = db
     .insert(schema.purchases)
     .values({
-      userId: admin.id,
+      userId: bossy.id,
       courseId: course2.id,
       pricePaid: 5999 * 5,
       country: "US",
@@ -1712,11 +1724,11 @@ You've completed the Building REST APIs course. You now have the skills to build
     .run();
 
   console.log(
-    `Created 1 team with 1 admin, 1 team purchase, and ${seededCoupons.length} coupons (2 redeemed, 3 available).`
+    `Created 1 team with Bossy McBossface as admin, 1 team purchase, and ${seededCoupons.length} coupons (2 redeemed, 3 available).`
   );
 
   console.log("\n✓ Seed complete!");
-  console.log("  Users: 8 (1 admin, 2 instructors, 5 students)");
+  console.log("  Users: 9 (1 admin, 2 instructors, 6 students)");
   console.log("  Categories: 5");
   console.log(
     `  Courses: 2 (${course1LessonIds.length} + ${course2LessonIds.length} lessons)`
