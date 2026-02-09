@@ -65,6 +65,30 @@ import {
   Globe,
 } from "lucide-react";
 import { data, isRouteErrorResponse } from "react-router";
+import { z } from "zod";
+import { parseFormData, parseParams } from "~/lib/validation";
+
+const courseEditorParamsSchema = z.object({
+  courseId: z.coerce.number().int(),
+});
+
+const courseEditorActionSchema = z.discriminatedUnion("intent", [
+  z.object({ intent: z.literal("update-title"), title: z.string().trim().min(1, "Title cannot be empty.") }),
+  z.object({ intent: z.literal("update-description"), description: z.string().trim().min(1, "Description cannot be empty.") }),
+  z.object({ intent: z.literal("update-status"), status: z.nativeEnum(CourseStatus) }),
+  z.object({ intent: z.literal("update-price"), price: z.string() }),
+  z.object({ intent: z.literal("update-ppp-enabled"), pppEnabled: z.string() }),
+  z.object({ intent: z.literal("add-module"), title: z.string().trim().min(1, "Module title cannot be empty.") }),
+  z.object({ intent: z.literal("rename-module"), moduleId: z.coerce.number().int(), title: z.string().trim().min(1, "Module title cannot be empty.") }),
+  z.object({ intent: z.literal("delete-module"), moduleId: z.coerce.number().int() }),
+  z.object({ intent: z.literal("add-lesson"), moduleId: z.coerce.number().int(), title: z.string().trim().min(1, "Lesson title cannot be empty.") }),
+  z.object({ intent: z.literal("rename-lesson"), lessonId: z.coerce.number().int(), title: z.string().trim().min(1, "Lesson title cannot be empty.") }),
+  z.object({ intent: z.literal("reorder-modules"), moduleIds: z.string().min(1, "Missing module IDs.") }),
+  z.object({ intent: z.literal("reorder-lessons"), moduleId: z.coerce.number().int(), lessonIds: z.string().min(1, "Missing lesson IDs.") }),
+  z.object({ intent: z.literal("move-lesson"), lessonId: z.coerce.number().int(), targetModuleId: z.coerce.number().int(), targetPosition: z.coerce.number().int() }),
+  z.object({ intent: z.literal("delete-lesson"), lessonId: z.coerce.number().int() }),
+  z.object({ intent: z.literal("update-sales-copy"), salesCopy: z.string().optional() }),
+]);
 
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const title = loaderData?.course?.title ?? "Edit Course";
@@ -124,10 +148,7 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("Only instructors and admins can edit courses.", { status: 403 });
   }
 
-  const courseId = parseInt(params.courseId, 10);
-  if (isNaN(courseId)) {
-    throw data("Invalid course ID.", { status: 400 });
-  }
+  const { courseId } = parseParams(params, courseEditorParamsSchema);
 
   const course = getCourseById(courseId);
   if (!course) {
@@ -139,44 +160,31 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   const formData = await request.formData();
-  const intent = formData.get("intent") as string;
+  const parsed = parseFormData(formData, courseEditorActionSchema);
+
+  if (!parsed.success) {
+    return data({ error: Object.values(parsed.errors)[0] ?? "Invalid input." }, { status: 400 });
+  }
+
+  const { intent } = parsed.data;
 
   if (intent === "update-title") {
-    const title = (formData.get("title") as string)?.trim();
-    if (!title) {
-      return data({ error: "Title cannot be empty." }, { status: 400 });
-    }
-    updateCourse(courseId, title, course.description);
+    updateCourse(courseId, parsed.data.title, course.description);
     return { success: true, field: "title" };
   }
 
   if (intent === "update-description") {
-    const description = (formData.get("description") as string)?.trim();
-    if (!description) {
-      return data(
-        { error: "Description cannot be empty." },
-        { status: 400 }
-      );
-    }
-    updateCourse(courseId, course.title, description);
+    updateCourse(courseId, course.title, parsed.data.description);
     return { success: true, field: "description" };
   }
 
   if (intent === "update-status") {
-    const status = formData.get("status") as CourseStatus;
-    if (
-      !status ||
-      ![CourseStatus.Draft, CourseStatus.Published, CourseStatus.Archived].includes(status)
-    ) {
-      return data({ error: "Invalid status." }, { status: 400 });
-    }
-    updateCourseStatus(courseId, status);
+    updateCourseStatus(courseId, parsed.data.status);
     return { success: true, field: "status" };
   }
 
   if (intent === "update-price") {
-    const priceStr = formData.get("price") as string;
-    const priceDollars = parseFloat(priceStr);
+    const priceDollars = parseFloat(parsed.data.price);
     if (isNaN(priceDollars) || priceDollars < 0) {
       return data({ error: "Price must be a non-negative number." }, { status: 400 });
     }
@@ -189,29 +197,18 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "update-ppp-enabled") {
-    const pppEnabled = formData.get("pppEnabled") === "true";
+    const pppEnabled = parsed.data.pppEnabled === "true";
     updateCoursePppEnabled(courseId, pppEnabled);
     return { success: true, field: "ppp-enabled" };
   }
 
   if (intent === "add-module") {
-    const title = (formData.get("title") as string)?.trim();
-    if (!title) {
-      return data({ error: "Module title cannot be empty." }, { status: 400 });
-    }
-    createModule(courseId, title, null);
+    createModule(courseId, parsed.data.title, null);
     return { success: true, field: "module" };
   }
 
   if (intent === "rename-module") {
-    const moduleId = parseInt(formData.get("moduleId") as string, 10);
-    const title = (formData.get("title") as string)?.trim();
-    if (isNaN(moduleId)) {
-      return data({ error: "Invalid module ID." }, { status: 400 });
-    }
-    if (!title) {
-      return data({ error: "Module title cannot be empty." }, { status: 400 });
-    }
+    const { moduleId, title } = parsed.data;
     const mod = getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
@@ -221,10 +218,7 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "delete-module") {
-    const moduleId = parseInt(formData.get("moduleId") as string, 10);
-    if (isNaN(moduleId)) {
-      return data({ error: "Invalid module ID." }, { status: 400 });
-    }
+    const { moduleId } = parsed.data;
     const mod = getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
@@ -234,14 +228,7 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "add-lesson") {
-    const moduleId = parseInt(formData.get("moduleId") as string, 10);
-    const title = (formData.get("title") as string)?.trim();
-    if (isNaN(moduleId)) {
-      return data({ error: "Invalid module ID." }, { status: 400 });
-    }
-    if (!title) {
-      return data({ error: "Lesson title cannot be empty." }, { status: 400 });
-    }
+    const { moduleId, title } = parsed.data;
     const mod = getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
@@ -251,19 +238,11 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "rename-lesson") {
-    const lessonId = parseInt(formData.get("lessonId") as string, 10);
-    const title = (formData.get("title") as string)?.trim();
-    if (isNaN(lessonId)) {
-      return data({ error: "Invalid lesson ID." }, { status: 400 });
-    }
-    if (!title) {
-      return data({ error: "Lesson title cannot be empty." }, { status: 400 });
-    }
+    const { lessonId, title } = parsed.data;
     const lesson = getLessonById(lessonId);
     if (!lesson) {
       return data({ error: "Lesson not found." }, { status: 404 });
     }
-    // Verify lesson belongs to a module in this course
     const mod = getModuleById(lesson.moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Lesson not found in this course." }, { status: 404 });
@@ -273,21 +252,13 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "reorder-modules") {
-    const moduleIdsJson = formData.get("moduleIds") as string;
-    if (!moduleIdsJson) {
-      return data({ error: "Missing module IDs." }, { status: 400 });
-    }
-    const moduleIds: number[] = JSON.parse(moduleIdsJson);
+    const moduleIds: number[] = JSON.parse(parsed.data.moduleIds);
     reorderModules(courseId, moduleIds);
     return { success: true, field: "module-reorder" };
   }
 
   if (intent === "reorder-lessons") {
-    const moduleId = parseInt(formData.get("moduleId") as string, 10);
-    const lessonIdsJson = formData.get("lessonIds") as string;
-    if (isNaN(moduleId) || !lessonIdsJson) {
-      return data({ error: "Missing module or lesson IDs." }, { status: 400 });
-    }
+    const { moduleId, lessonIds: lessonIdsJson } = parsed.data;
     const mod = getModuleById(moduleId);
     if (!mod || mod.courseId !== courseId) {
       return data({ error: "Module not found in this course." }, { status: 404 });
@@ -298,12 +269,7 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "move-lesson") {
-    const lessonId = parseInt(formData.get("lessonId") as string, 10);
-    const targetModuleId = parseInt(formData.get("targetModuleId") as string, 10);
-    const targetPosition = parseInt(formData.get("targetPosition") as string, 10);
-    if (isNaN(lessonId) || isNaN(targetModuleId) || isNaN(targetPosition)) {
-      return data({ error: "Missing move parameters." }, { status: 400 });
-    }
+    const { lessonId, targetModuleId, targetPosition } = parsed.data;
     const lesson = getLessonById(lessonId);
     if (!lesson) {
       return data({ error: "Lesson not found." }, { status: 404 });
@@ -321,10 +287,7 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "delete-lesson") {
-    const lessonId = parseInt(formData.get("lessonId") as string, 10);
-    if (isNaN(lessonId)) {
-      return data({ error: "Invalid lesson ID." }, { status: 400 });
-    }
+    const { lessonId } = parsed.data;
     const lesson = getLessonById(lessonId);
     if (!lesson) {
       return data({ error: "Lesson not found." }, { status: 404 });
@@ -338,8 +301,7 @@ export async function action({ params, request }: Route.ActionArgs) {
   }
 
   if (intent === "update-sales-copy") {
-    const salesCopy = (formData.get("salesCopy") as string) || null;
-    updateCourseSalesCopy(courseId, salesCopy);
+    updateCourseSalesCopy(courseId, parsed.data.salesCopy || null);
     return { success: true, field: "sales-copy" };
   }
 
