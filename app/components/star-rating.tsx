@@ -60,7 +60,7 @@ export function StarRatingInput({ currentRating }: StarRatingInputProps) {
         >
           <Star
             className={cn(
-              "size-6",
+              "size-4",
               star <= displayRating
                 ? "fill-yellow-400 text-yellow-400"
                 : "text-muted-foreground hover:text-yellow-300"
