@@ -15,6 +15,8 @@ import {
 } from "~/services/progressService";
 import { getCurrentUserId } from "~/lib/session";
 import { LessonProgressStatus } from "~/db/schema";
+import { upsertRating, getUserRatingForCourse } from "~/services/ratingService";
+import { StarRatingDisplay, StarRatingInput } from "~/components/star-rating";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -102,6 +104,11 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     : courseWithDetails.price;
   const tierInfo = getCountryTierInfo(country);
 
+  const userRating =
+    currentUserId && enrolled
+      ? getUserRatingForCourse(currentUserId, course.id)?.rating ?? null
+      : null;
+
   return {
     course: courseWithDetails,
     salesCopyHtml,
@@ -113,10 +120,42 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     currentUserId,
     pppPrice,
     tierInfo,
+    userRating,
   };
 }
 
-// No action — enrollment is handled via the purchase confirmation page
+export async function action({ params, request }: Route.ActionArgs) {
+  const currentUserId = await getCurrentUserId(request);
+  if (!currentUserId) {
+    throw data("Unauthorized", { status: 401 });
+  }
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "rate") {
+    const slug = params.slug;
+    const course = getCourseBySlug(slug);
+    if (!course) {
+      throw data("Course not found", { status: 404 });
+    }
+
+    const enrolled = isUserEnrolled(currentUserId, course.id);
+    if (!enrolled) {
+      throw data("Must be enrolled to rate", { status: 403 });
+    }
+
+    const rating = Number(formData.get("rating"));
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      throw data("Invalid rating", { status: 400 });
+    }
+
+    upsertRating(currentUserId, course.id, rating);
+    return { success: true };
+  }
+
+  throw data("Unknown intent", { status: 400 });
+}
 
 export function HydrateFallback() {
   return (
@@ -181,6 +220,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
     currentUserId,
     pppPrice,
     tierInfo,
+    userRating,
   } = loaderData;
   const isInstructor = currentUserId === course.instructorId;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -301,7 +341,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
         <p className="mb-4 text-lg text-muted-foreground">
           {course.description}
         </p>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <UserAvatar
               name={course.instructorName}
@@ -320,6 +360,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
               {formatDuration(totalDuration, true, false, false)} total
             </span>
           )}
+          <StarRatingDisplay average={course.avgRating} count={course.ratingCount} />
         </div>
       </div>
 
@@ -381,6 +422,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
                 </Link>
               ) : enrolled ? (
                 <>
+                  <StarRatingInput currentRating={userRating} />
                   <div className="mb-2 flex items-center justify-between text-sm">
                     <span>{progress}% complete</span>
                   </div>

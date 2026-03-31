@@ -6,6 +6,7 @@ import {
   users,
   modules,
   lessons,
+  courseRatings,
   CourseStatus,
 } from "~/db/schema";
 
@@ -88,6 +89,8 @@ export function buildCourseQuery(
       instructorName: users.name,
       instructorAvatarUrl: users.avatarUrl,
       categoryName: categories.name,
+      avgRating: sql<number | null>`(SELECT AVG(cr.rating) FROM course_ratings cr WHERE cr.course_id = ${courses.id})`,
+      ratingCount: sql<number>`(SELECT COUNT(*) FROM course_ratings cr WHERE cr.course_id = ${courses.id})`,
     })
     .from(courses)
     .innerJoin(users, eq(courses.instructorId, users.id))
@@ -130,6 +133,8 @@ export function getCourseWithDetails(id: number) {
       instructorAvatarUrl: users.avatarUrl,
       instructorBio: users.bio,
       categoryName: categories.name,
+      avgRating: sql<number | null>`(SELECT AVG(cr.rating) FROM course_ratings cr WHERE cr.course_id = ${courses.id})`,
+      ratingCount: sql<number>`(SELECT COUNT(*) FROM course_ratings cr WHERE cr.course_id = ${courses.id})`,
     })
     .from(courses)
     .innerJoin(users, eq(courses.instructorId, users.id))
