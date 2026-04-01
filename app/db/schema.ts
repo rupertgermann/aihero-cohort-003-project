@@ -27,6 +27,11 @@ export enum LessonProgressStatus {
   Completed = "completed",
 }
 
+export enum LessonCommentStatus {
+  Visible = "visible",
+  Hidden = "hidden",
+}
+
 export enum QuestionType {
   MultipleChoice = "multiple_choice",
   TrueFalse = "true_false",
@@ -262,6 +267,41 @@ export const videoWatchEvents = sqliteTable("video_watch_events", {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
+
+export const lessonComments = sqliteTable(
+  "lesson_comments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    lessonId: integer("lesson_id")
+      .notNull()
+      .references(() => lessons.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    body: text("body").notNull(),
+    status: text("status")
+      .notNull()
+      .$type<LessonCommentStatus>()
+      .default(LessonCommentStatus.Visible),
+    moderatedByUserId: integer("moderated_by_user_id").references(
+      () => users.id
+    ),
+    moderatedAt: text("moderated_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    index("lesson_comments_lesson_status_idx").on(table.lessonId, table.status),
+    check(
+      "lesson_comments_body_length_check",
+      sql`length(${table.body}) >= 1 AND length(${table.body}) <= 1000`
+    ),
+  ]
+);
 
 export const courseRatings = sqliteTable(
   "course_ratings",
