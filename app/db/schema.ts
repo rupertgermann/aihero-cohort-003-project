@@ -1,4 +1,13 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export enum UserRole {
   Student = "student",
@@ -254,19 +263,33 @@ export const videoWatchEvents = sqliteTable("video_watch_events", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
-export const courseRatings = sqliteTable("course_ratings", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id),
-  courseId: integer("course_id")
-    .notNull()
-    .references(() => courses.id),
-  rating: integer("rating").notNull(), // 1-5
-  createdAt: text("created_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-  updatedAt: text("updated_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-});
+export const courseRatings = sqliteTable(
+  "course_ratings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    courseId: integer("course_id")
+      .notNull()
+      .references(() => courses.id),
+    rating: integer("rating").notNull(), // 1-5
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    uniqueIndex("course_ratings_user_course_idx").on(
+      table.userId,
+      table.courseId
+    ),
+    index("course_ratings_course_id_idx").on(table.courseId),
+    check(
+      "course_ratings_rating_check",
+      sql`${table.rating} >= 1 AND ${table.rating} <= 5`
+    ),
+  ]
+);
