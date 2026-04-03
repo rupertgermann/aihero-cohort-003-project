@@ -7,6 +7,7 @@ import {
   BookOpen,
   LayoutDashboard,
   GraduationCap,
+  BarChart3,
   Shield,
   Tag,
   Users,
@@ -65,6 +66,12 @@ const navItems: NavItem[] = [
     to: "/instructor",
     icon: <GraduationCap className="size-4" />,
     roles: [UserRole.Instructor],
+  },
+  {
+    label: "Analytics",
+    to: "/instructor/analytics",
+    icon: <BarChart3 className="size-4" />,
+    roles: [UserRole.Instructor, UserRole.Admin],
   },
   {
     label: "Manage Users",

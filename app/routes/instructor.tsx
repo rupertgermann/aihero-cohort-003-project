@@ -7,7 +7,14 @@ import { getUserById } from "~/services/userService";
 import { Card, CardContent, CardFooter, CardHeader } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
-import { AlertTriangle, BookOpen, GraduationCap, Plus, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  BarChart3,
+  BookOpen,
+  GraduationCap,
+  Plus,
+  Users,
+} from "lucide-react";
 import { CourseImage } from "~/components/course-image";
 import { data, isRouteErrorResponse } from "react-router";
 import { CourseStatus, UserRole } from "~/db/schema";
@@ -134,19 +141,27 @@ export default function InstructorDashboard({
         <span className="text-foreground">My Courses</span>
       </nav>
 
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">My Courses</h1>
           <p className="mt-1 text-muted-foreground">
             Manage your courses and track enrollments
           </p>
         </div>
-        <Link to="/instructor/new">
-          <Button>
-            <Plus className="mr-2 size-4" />
-            New Course
+        <div className="flex items-center gap-3">
+          <Button asChild variant="outline">
+            <Link to="/instructor/analytics">
+              <BarChart3 className="mr-2 size-4" />
+              Analytics
+            </Link>
           </Button>
-        </Link>
+          <Button asChild>
+            <Link to="/instructor/new">
+              <Plus className="mr-2 size-4" />
+              New Course
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {courses.length === 0 ? (

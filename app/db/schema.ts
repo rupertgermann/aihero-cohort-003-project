@@ -140,6 +140,9 @@ export const lessonProgress = sqliteTable("lesson_progress", {
     .references(() => lessons.id),
   status: text("status").notNull().$type<LessonProgressStatus>(),
   completedAt: text("completed_at"),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
 });
 
 export const quizzes = sqliteTable("quizzes", {
