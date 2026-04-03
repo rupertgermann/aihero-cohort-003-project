@@ -32,16 +32,16 @@ Write service-level tests covering each metric definition, the effect of the tim
 
 ### Acceptance criteria
 
-- [ ] Instructor navigating to `/instructor/analytics` sees a page scoped to their own courses.
-- [ ] Admin navigating to `/instructor/analytics` sees rollup across all courses (no instructor filter yet — that is Phase 4).
-- [ ] A student or unauthenticated user receives a 403/redirect.
-- [ ] KPI cards display: Gross Revenue, New Enrollments, Active Learners, Completion Rate.
-- [ ] Time-range selector shows 7 / 30 / 90 day options; selecting one updates all KPI values.
-- [ ] Gross revenue counts only purchases within the selected date range.
-- [ ] New enrollments counts only enrollments created within the selected date range.
-- [ ] Active learners counts learners who recorded any `lessonProgress.updatedAt` update within the range.
-- [ ] Completion rate = learners with 100% lesson completion / all enrolled learners (not date-scoped).
-- [ ] Analytics service tests pass for all four metric definitions across all three date ranges.
+- [x] Instructor navigating to `/instructor/analytics` sees a page scoped to their own courses.
+- [x] Admin navigating to `/instructor/analytics` sees rollup across all courses (no instructor filter yet — that is Phase 4).
+- [x] A student or unauthenticated user receives a 403/redirect.
+- [x] KPI cards display: Gross Revenue, New Enrollments, Active Learners, Completion Rate.
+- [x] Time-range selector shows 7 / 30 / 90 day options; selecting one updates all KPI values.
+- [x] Gross revenue counts only purchases within the selected date range.
+- [x] New enrollments counts only enrollments created within the selected date range.
+- [x] Active learners counts learners who recorded any `lessonProgress.updatedAt` update within the range.
+- [x] Completion rate = learners with 100% lesson completion / all enrolled learners (not date-scoped).
+- [x] Analytics service tests pass for all four metric definitions across all three date ranges.
 
 ---
 
@@ -61,15 +61,15 @@ Write service-level tests for each warning flag threshold (at boundary, below, a
 
 ### Acceptance criteria
 
-- [ ] The rollup page shows a table with one row per course owned by the instructor (or all courses for admin).
-- [ ] Each row includes: Course Title, Revenue, New Enrollments, Active Learners, Completion Rate, Avg Rating (with count), Warning Flags.
-- [ ] Time-range filter applies to Revenue, New Enrollments, and Active Learners columns; Completion Rate and Rating are not date-scoped.
-- [ ] A course with total enrollments < 5 shows a `Low Enrollments` warning flag.
-- [ ] A course with completion rate < 20% shows a `Low Completion` warning flag.
-- [ ] A course with avg rating < 3.5 AND at least 3 ratings shows a `Low Rating` warning flag.
-- [ ] A course with fewer than 3 ratings does not show a `Low Rating` flag.
-- [ ] Multiple flags can appear on the same row simultaneously.
-- [ ] Warning flag threshold tests pass for all three flag types.
+- [x] The rollup page shows a table with one row per course owned by the instructor (or all courses for admin).
+- [x] Each row includes: Course Title, Revenue, New Enrollments, Active Learners, Completion Rate, Avg Rating (with count), Warning Flags.
+- [x] Time-range filter applies to Revenue, New Enrollments, and Active Learners columns; Completion Rate and Rating are not date-scoped.
+- [x] A course with total enrollments < 5 shows a `Low Enrollments` warning flag.
+- [x] A course with completion rate < 20% shows a `Low Completion` warning flag.
+- [x] A course with avg rating < 3.5 AND at least 3 ratings shows a `Low Rating` warning flag.
+- [x] A course with fewer than 3 ratings does not show a `Low Rating` flag.
+- [x] Multiple flags can appear on the same row simultaneously.
+- [x] Warning flag threshold tests pass for all three flag types.
 
 ---
 
@@ -87,14 +87,14 @@ Extend analytics service tests to cover single-course metric isolation (metrics 
 
 ### Acceptance criteria
 
-- [ ] Clicking a course row on the rollup page navigates to `/instructor/analytics/:courseId`.
-- [ ] Instructor can only reach the detail view for courses they own; admin can reach any course.
-- [ ] Page shows KPI cards identical in definition to the rollup cards, scoped to the single course.
-- [ ] Time-range selector works the same way as on the rollup page.
-- [ ] A student detail table shows enrolled learners with progress %, last activity date, and completion status.
-- [ ] "Edit Course" link navigates to `/instructor/:courseId`.
-- [ ] "Student Roster" link navigates to `/instructor/:courseId/students`.
-- [ ] Service tests confirm single-course metrics are isolated from other courses' data.
+- [x] Clicking a course row on the rollup page navigates to `/instructor/analytics/:courseId`.
+- [x] Instructor can only reach the detail view for courses they own; admin can reach any course.
+- [x] Page shows KPI cards identical in definition to the rollup cards, scoped to the single course.
+- [x] Time-range selector works the same way as on the rollup page.
+- [x] A student detail table shows enrolled learners with progress %, last activity date, and completion status.
+- [x] "Edit Course" link navigates to `/instructor/:courseId`.
+- [x] "Student Roster" link navigates to `/instructor/:courseId/students`.
+- [x] Service tests confirm single-course metrics are isolated from other courses' data.
 
 ---
 
@@ -112,12 +112,12 @@ Write tests for: admin instructor-filter scoping, non-admin access to the export
 
 ### Acceptance criteria
 
-- [ ] An admin visiting `/instructor/analytics` sees a dropdown to filter by instructor.
-- [ ] Selecting an instructor updates the KPI cards and course table to reflect only that instructor's courses.
-- [ ] An instructor does not see the instructor filter dropdown.
-- [ ] Admin can navigate to any course's detail view regardless of course owner.
-- [ ] A "Download CSV" button is visible to admins only on the rollup page.
-- [ ] Clicking "Download CSV" triggers a file download with columns matching the course comparison table.
-- [ ] The CSV respects the currently selected instructor filter and time range.
-- [ ] A non-admin request to the export endpoint returns 403.
-- [ ] Service and route tests cover admin scoping, export access control, and CSV column correctness.
+- [x] An admin visiting `/instructor/analytics` sees a dropdown to filter by instructor.
+- [x] Selecting an instructor updates the KPI cards and course table to reflect only that instructor's courses.
+- [x] An instructor does not see the instructor filter dropdown.
+- [x] Admin can navigate to any course's detail view regardless of course owner.
+- [x] A "Download CSV" button is visible to admins only on the rollup page.
+- [x] Clicking "Download CSV" triggers a file download with columns matching the course comparison table.
+- [x] The CSV respects the currently selected instructor filter and time range.
+- [x] A non-admin request to the export endpoint returns 403.
+- [x] Service and route tests cover admin scoping, export access control, and CSV column correctness.

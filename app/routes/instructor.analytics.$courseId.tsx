@@ -21,9 +21,10 @@ import {
   BookOpen,
   GraduationCap,
 } from "lucide-react";
-
-const VALID_DAYS = [7, 30, 90] as const;
-type Days = (typeof VALID_DAYS)[number];
+import {
+  parseAnalyticsDays,
+  VALID_ANALYTICS_DAYS,
+} from "./instructor.analytics.shared";
 
 export function meta({ data: loaderData }: Route.MetaArgs) {
   const title = loaderData?.metrics?.courseTitle ?? "Course Analytics";
@@ -50,10 +51,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   const url = new URL(request.url);
-  const daysParam = Number(url.searchParams.get("days") ?? "30");
-  const days: Days = (VALID_DAYS as readonly number[]).includes(daysParam)
-    ? (daysParam as Days)
-    : 30;
+  const days = parseAnalyticsDays(url);
 
   let metrics;
   let students;
@@ -133,7 +131,7 @@ export default function CourseAnalyticsDetail({ loaderData }: Route.ComponentPro
 
           {/* Time Range Selector */}
           <div className="flex items-center gap-1 rounded-lg border bg-muted p-1">
-            {VALID_DAYS.map((d) => (
+            {VALID_ANALYTICS_DAYS.map((d) => (
               <Link
                 key={d}
                 to={buildDetailSearch(d)}
