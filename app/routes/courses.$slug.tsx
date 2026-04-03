@@ -379,7 +379,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
 
           {/* Bottom CTA */}
           {!enrolled && !isInstructor && (
-            <div className="mt-8 rounded-lg border bg-muted/50 p-6">
+            <div className="mt-8 rounded-lg border bg-muted/50 p-6 lg:hidden">
               <h3 className="mb-2 text-lg font-semibold">
                 Ready to get started?
               </h3>
@@ -457,7 +457,7 @@ export default function CourseDetail({ loaderData }: Route.ComponentProps) {
                   </Link>
                 </>
               ) : (
-                enrollButton
+                <div className="hidden lg:block">{enrollButton}</div>
               )}
               <div className="space-y-2 pt-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
