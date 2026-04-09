@@ -13,6 +13,14 @@ import {
 } from "~/services/progressService";
 import { getCountryTierInfo, COUNTRIES } from "~/lib/ppp";
 import { isTeamAdmin } from "~/services/teamService";
+import {
+  getNotifications,
+  getUnreadCount,
+} from "~/services/notificationService";
+import { UserRole } from "~/db/schema";
+import { getTotalXp } from "~/services/xpService";
+import { getLevelFromXp } from "~/lib/leveling";
+import { getStreakData } from "~/services/streakService";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const users = getAllUsers();
@@ -46,6 +54,27 @@ export async function loader({ request }: Route.LoaderArgs) {
       })
     : [];
 
+  const isStudent = currentUser?.role === UserRole.Student;
+  const gamification =
+    isStudent && currentUserId
+      ? (() => {
+          const totalXp = getTotalXp(currentUserId);
+          const levelInfo = getLevelFromXp(totalXp);
+          const streak = getStreakData(currentUserId);
+          return { ...levelInfo, totalXp, ...streak };
+        })()
+      : null;
+
+  const isInstructor = currentUser?.role === UserRole.Instructor;
+  const userIsTeamAdmin = currentUserId ? isTeamAdmin(currentUserId) : false;
+  const showNotifications = (isInstructor || userIsTeamAdmin) && currentUserId;
+  const notifications = showNotifications
+    ? getNotifications(currentUserId, 5, 0)
+    : [];
+  const notificationUnreadCount = showNotifications
+    ? getUnreadCount(currentUserId)
+    : 0;
+
   return {
     users: users.map((u) => ({ id: u.id, name: u.name, role: u.role })),
     currentUser: currentUser
@@ -60,7 +89,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     devCountry,
     countryTierInfo,
     countries: COUNTRIES,
-    isTeamAdmin: currentUserId ? isTeamAdmin(currentUserId) : false,
+    isTeamAdmin: userIsTeamAdmin,
+    notifications,
+    notificationUnreadCount,
+    gamification,
   };
 }
 
@@ -73,6 +105,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     countryTierInfo,
     countries,
     isTeamAdmin: userIsTeamAdmin,
+    notifications,
+    notificationUnreadCount,
+    gamification,
   } = loaderData;
 
   return (
@@ -81,6 +116,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         currentUser={currentUser}
         recentCourses={recentCourses}
         isTeamAdmin={userIsTeamAdmin}
+        notifications={notifications}
+        notificationUnreadCount={notificationUnreadCount}
+        gamification={gamification}
       />
       <main className="flex-1 overflow-y-auto">
         <Outlet />
