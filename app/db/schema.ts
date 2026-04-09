@@ -306,6 +306,30 @@ export const lessonComments = sqliteTable(
   ]
 );
 
+export const streakActivities = sqliteTable("streak_activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  date: text("date").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const xpEvents = sqliteTable("xp_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  amount: integer("amount").notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceId: integer("source_id").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
 export const courseRatings = sqliteTable(
   "course_ratings",
   {
