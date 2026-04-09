@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createTestDb, seedBaseData } from "~/test/setup";
 import * as schema from "~/db/schema";
+import { NotificationType } from "~/db/schema";
 
 let testDb: ReturnType<typeof createTestDb>;
 let base: ReturnType<typeof seedBaseData>;
@@ -25,6 +26,7 @@ import {
   getCourseEnrolledStudents,
   markEnrollmentComplete,
 } from "./enrollmentService";
+import { getNotifications } from "./notificationService";
 
 describe("enrollmentService", () => {
   beforeEach(() => {
@@ -52,18 +54,16 @@ describe("enrollmentService", () => {
     });
 
     it("throws when enrolling in a non-existent course", () => {
-      expect(() =>
-        enrollUser(base.user.id, 9999, false, false)
-      ).toThrowError("Course not found");
+      expect(() => enrollUser(base.user.id, 9999, false, false)).toThrowError(
+        "Course not found"
+      );
     });
 
     it("skips course existence check when skipValidation is true", () => {
       // skipValidation bypasses the course existence check at the service level,
       // but the DB foreign key constraint still prevents inserting invalid references.
       // Verify it doesn't throw "Course not found" (service-level) but throws FK error instead.
-      expect(() =>
-        enrollUser(base.user.id, 9999, false, true)
-      ).toThrowError(); // FK constraint, not "Course not found"
+      expect(() => enrollUser(base.user.id, 9999, false, true)).toThrowError(); // FK constraint, not "Course not found"
     });
 
     it("allows duplicate enrollment when skipValidation is true", () => {
@@ -91,9 +91,9 @@ describe("enrollmentService", () => {
     });
 
     it("throws when unenrolling a user who is not enrolled", () => {
-      expect(() =>
-        unenrollUser(base.user.id, base.course.id)
-      ).toThrowError("User is not enrolled in this course");
+      expect(() => unenrollUser(base.user.id, base.course.id)).toThrowError(
+        "User is not enrolled in this course"
+      );
     });
 
     it("removes the enrollment from the database", () => {
@@ -248,6 +248,25 @@ describe("enrollmentService", () => {
 
     it("returns empty array when course has no enrollments", () => {
       expect(getCourseEnrolledStudents(base.course.id)).toHaveLength(0);
+    });
+  });
+
+  describe("enrollment notifications", () => {
+    it("creates a notification for the instructor when a student enrolls", () => {
+      enrollUser(base.user.id, base.course.id, false, false);
+
+      const notifications = getNotifications(base.instructor.id, 10, 0);
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0].recipientUserId).toBe(base.instructor.id);
+      expect(notifications[0].type).toBe(NotificationType.Enrollment);
+      expect(notifications[0].title).toBe("New Enrollment");
+      expect(notifications[0].message).toBe(
+        "Test User enrolled in Test Course"
+      );
+      expect(notifications[0].linkUrl).toBe(
+        `/instructor/${base.course.id}/students`
+      );
+      expect(notifications[0].isRead).toBe(false);
     });
   });
 });

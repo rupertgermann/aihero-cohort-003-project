@@ -104,7 +104,14 @@ describe("courseService", () => {
     });
 
     it("returns multiple courses", () => {
-      createCourse("Second", "second", "desc", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Second",
+        "second",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
       const all = getAllCourses();
       expect(all).toHaveLength(2);
     });
@@ -112,7 +119,11 @@ describe("courseService", () => {
 
   describe("updateCourse", () => {
     it("updates title and description", () => {
-      const updated = updateCourse(base.course.id, "Updated Title", "Updated description");
+      const updated = updateCourse(
+        base.course.id,
+        "Updated Title",
+        "Updated description"
+      );
 
       expect(updated).toBeDefined();
       expect(updated!.title).toBe("Updated Title");
@@ -188,7 +199,14 @@ describe("courseService", () => {
 
   describe("getPublishedCourses", () => {
     it("returns only published courses", () => {
-      createCourse("Draft", "draft", "desc", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Draft",
+        "draft",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
       // base.course is published, new course is draft
       const published = getPublishedCourses();
       expect(published).toHaveLength(1);
@@ -200,24 +218,43 @@ describe("courseService", () => {
 
   describe("updateCourseStatus", () => {
     it("transitions from published to archived", () => {
-      const result = updateCourseStatus(base.course.id, schema.CourseStatus.Archived);
+      const result = updateCourseStatus(
+        base.course.id,
+        schema.CourseStatus.Archived
+      );
       expect(result).toBeDefined();
       expect(result!.status).toBe(schema.CourseStatus.Archived);
     });
 
     it("transitions from draft to published", () => {
-      const draft = createCourse("Draft", "draft", "desc", base.instructor.id, base.category.id, null);
-      const result = updateCourseStatus(draft.id, schema.CourseStatus.Published);
+      const draft = createCourse(
+        "Draft",
+        "draft",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
+      const result = updateCourseStatus(
+        draft.id,
+        schema.CourseStatus.Published
+      );
       expect(result!.status).toBe(schema.CourseStatus.Published);
     });
 
     it("transitions from published to draft", () => {
-      const result = updateCourseStatus(base.course.id, schema.CourseStatus.Draft);
+      const result = updateCourseStatus(
+        base.course.id,
+        schema.CourseStatus.Draft
+      );
       expect(result!.status).toBe(schema.CourseStatus.Draft);
     });
 
     it("updates the updatedAt timestamp", () => {
-      const result = updateCourseStatus(base.course.id, schema.CourseStatus.Archived);
+      const result = updateCourseStatus(
+        base.course.id,
+        schema.CourseStatus.Archived
+      );
       expect(result!.updatedAt).toBeDefined();
     });
   });
@@ -233,8 +270,40 @@ describe("courseService", () => {
       expect(results[0].categoryName).toBe("Programming");
     });
 
+    it("includes average rating and rating count", () => {
+      const secondStudent = testDb
+        .insert(schema.users)
+        .values({
+          name: "Student Two",
+          email: "student-two@example.com",
+          role: schema.UserRole.Student,
+        })
+        .returning()
+        .get();
+
+      testDb
+        .insert(schema.courseRatings)
+        .values([
+          { userId: base.user.id, courseId: base.course.id, rating: 4 },
+          { userId: secondStudent.id, courseId: base.course.id, rating: 5 },
+        ])
+        .run();
+
+      const results = buildCourseQuery(null, null, null, null, 10, 0);
+
+      expect(results[0].ratingCount).toBe(2);
+      expect(results[0].avgRating).toBeCloseTo(4.5);
+    });
+
     it("filters by search term in title", () => {
-      createCourse("JavaScript Basics", "js-basics", "Learn JS", base.instructor.id, base.category.id, null);
+      createCourse(
+        "JavaScript Basics",
+        "js-basics",
+        "Learn JS",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
 
       const results = buildCourseQuery("JavaScript", null, null, null, 10, 0);
       // Only the draft JS course, not the published Test Course
@@ -244,7 +313,14 @@ describe("courseService", () => {
     });
 
     it("filters by search term in description", () => {
-      createCourse("Intro", "intro", "Learn Python programming", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Intro",
+        "intro",
+        "Learn Python programming",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
 
       const results = buildCourseQuery("Python", null, null, null, 10, 0);
       expect(results).toHaveLength(1);
@@ -252,13 +328,34 @@ describe("courseService", () => {
     });
 
     it("filters by status", () => {
-      createCourse("Draft", "draft-c", "desc", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Draft",
+        "draft-c",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
 
-      const published = buildCourseQuery(null, null, schema.CourseStatus.Published, null, 10, 0);
+      const published = buildCourseQuery(
+        null,
+        null,
+        schema.CourseStatus.Published,
+        null,
+        10,
+        0
+      );
       expect(published).toHaveLength(1);
       expect(published[0].status).toBe(schema.CourseStatus.Published);
 
-      const drafts = buildCourseQuery(null, null, schema.CourseStatus.Draft, null, 10, 0);
+      const drafts = buildCourseQuery(
+        null,
+        null,
+        schema.CourseStatus.Draft,
+        null,
+        10,
+        0
+      );
       expect(drafts).toHaveLength(1);
       expect(drafts[0].status).toBe(schema.CourseStatus.Draft);
     });
@@ -269,7 +366,14 @@ describe("courseService", () => {
         .values({ name: "Design", slug: "design" })
         .returning()
         .get();
-      createCourse("Design 101", "design-101", "desc", base.instructor.id, designCat.id, null);
+      createCourse(
+        "Design 101",
+        "design-101",
+        "desc",
+        base.instructor.id,
+        designCat.id,
+        null
+      );
 
       const results = buildCourseQuery(null, "design", null, null, 10, 0);
       expect(results).toHaveLength(1);
@@ -277,23 +381,58 @@ describe("courseService", () => {
     });
 
     it("combines search and status filters", () => {
-      createCourse("Test Draft", "test-draft", "desc", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Test Draft",
+        "test-draft",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
 
-      const results = buildCourseQuery("Test", null, schema.CourseStatus.Published, null, 10, 0);
+      const results = buildCourseQuery(
+        "Test",
+        null,
+        schema.CourseStatus.Published,
+        null,
+        10,
+        0
+      );
       expect(results).toHaveLength(1);
       expect(results[0].title).toBe("Test Course");
     });
 
     it("respects limit", () => {
-      createCourse("Second", "second", "desc", base.instructor.id, base.category.id, null);
-      createCourse("Third", "third", "desc", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Second",
+        "second",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
+      createCourse(
+        "Third",
+        "third",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
 
       const results = buildCourseQuery(null, null, null, null, 2, 0);
       expect(results).toHaveLength(2);
     });
 
     it("respects offset", () => {
-      createCourse("Second", "second", "desc", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Second",
+        "second",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
 
       const all = buildCourseQuery(null, null, null, null, 10, 0);
       const offset = buildCourseQuery(null, null, null, null, 10, 1);
@@ -301,8 +440,22 @@ describe("courseService", () => {
     });
 
     it("sorts by title", () => {
-      createCourse("Alpha Course", "alpha", "desc", base.instructor.id, base.category.id, null);
-      createCourse("Zeta Course", "zeta", "desc", base.instructor.id, base.category.id, null);
+      createCourse(
+        "Alpha Course",
+        "alpha",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
+      createCourse(
+        "Zeta Course",
+        "zeta",
+        "desc",
+        base.instructor.id,
+        base.category.id,
+        null
+      );
 
       const results = buildCourseQuery(null, null, null, "title", 10, 0);
       expect(results[0].title).toBe("Alpha Course");
@@ -310,7 +463,14 @@ describe("courseService", () => {
     });
 
     it("returns empty array when no courses match", () => {
-      const results = buildCourseQuery("nonexistent-query-xyz", null, null, null, 10, 0);
+      const results = buildCourseQuery(
+        "nonexistent-query-xyz",
+        null,
+        null,
+        null,
+        10,
+        0
+      );
       expect(results).toHaveLength(0);
     });
   });
@@ -330,14 +490,45 @@ describe("courseService", () => {
       expect(result!.categoryName).toBe("Programming");
     });
 
+    it("includes average rating and rating count", () => {
+      const secondStudent = testDb
+        .insert(schema.users)
+        .values({
+          name: "Student Two",
+          email: "student-two-details@example.com",
+          role: schema.UserRole.Student,
+        })
+        .returning()
+        .get();
+
+      testDb
+        .insert(schema.courseRatings)
+        .values([
+          { userId: base.user.id, courseId: base.course.id, rating: 3 },
+          { userId: secondStudent.id, courseId: base.course.id, rating: 5 },
+        ])
+        .run();
+
+      const result = getCourseWithDetails(base.course.id);
+
+      expect(result!.ratingCount).toBe(2);
+      expect(result!.avgRating).toBeCloseTo(4);
+    });
+
     it("returns empty modules array when course has no modules", () => {
       const result = getCourseWithDetails(base.course.id);
       expect(result!.modules).toHaveLength(0);
     });
 
     it("returns modules ordered by position", () => {
-      testDb.insert(schema.modules).values({ courseId: base.course.id, title: "Module B", position: 2 }).run();
-      testDb.insert(schema.modules).values({ courseId: base.course.id, title: "Module A", position: 1 }).run();
+      testDb
+        .insert(schema.modules)
+        .values({ courseId: base.course.id, title: "Module B", position: 2 })
+        .run();
+      testDb
+        .insert(schema.modules)
+        .values({ courseId: base.course.id, title: "Module A", position: 1 })
+        .run();
 
       const result = getCourseWithDetails(base.course.id);
       expect(result!.modules).toHaveLength(2);
@@ -352,8 +543,14 @@ describe("courseService", () => {
         .returning()
         .get();
 
-      testDb.insert(schema.lessons).values({ moduleId: mod.id, title: "Lesson B", position: 2 }).run();
-      testDb.insert(schema.lessons).values({ moduleId: mod.id, title: "Lesson A", position: 1 }).run();
+      testDb
+        .insert(schema.lessons)
+        .values({ moduleId: mod.id, title: "Lesson B", position: 2 })
+        .run();
+      testDb
+        .insert(schema.lessons)
+        .values({ moduleId: mod.id, title: "Lesson A", position: 1 })
+        .run();
 
       const result = getCourseWithDetails(base.course.id);
       expect(result!.modules[0].lessons).toHaveLength(2);
@@ -373,8 +570,14 @@ describe("courseService", () => {
         .returning()
         .get();
 
-      testDb.insert(schema.lessons).values({ moduleId: mod1.id, title: "M1 Lesson", position: 1 }).run();
-      testDb.insert(schema.lessons).values({ moduleId: mod2.id, title: "M2 Lesson", position: 1 }).run();
+      testDb
+        .insert(schema.lessons)
+        .values({ moduleId: mod1.id, title: "M1 Lesson", position: 1 })
+        .run();
+      testDb
+        .insert(schema.lessons)
+        .values({ moduleId: mod2.id, title: "M2 Lesson", position: 1 })
+        .run();
 
       const result = getCourseWithDetails(base.course.id);
       expect(result!.modules[0].lessons).toHaveLength(1);
@@ -403,12 +606,20 @@ describe("courseService", () => {
         .returning()
         .get();
 
-      testDb.insert(schema.lessons).values({ moduleId: mod1.id, title: "L1", position: 1 }).run();
-      testDb.insert(schema.lessons).values({ moduleId: mod1.id, title: "L2", position: 2 }).run();
-      testDb.insert(schema.lessons).values({ moduleId: mod2.id, title: "L3", position: 1 }).run();
+      testDb
+        .insert(schema.lessons)
+        .values({ moduleId: mod1.id, title: "L1", position: 1 })
+        .run();
+      testDb
+        .insert(schema.lessons)
+        .values({ moduleId: mod1.id, title: "L2", position: 2 })
+        .run();
+      testDb
+        .insert(schema.lessons)
+        .values({ moduleId: mod2.id, title: "L3", position: 1 })
+        .run();
 
       expect(getLessonCountForCourse(base.course.id)).toBe(3);
     });
   });
-
 });

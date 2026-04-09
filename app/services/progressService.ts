@@ -64,6 +64,7 @@ export function markLessonComplete(userId: number, lessonId: number) {
       .set({
         status: LessonProgressStatus.Completed,
         completedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
       .where(eq(lessonProgress.id, existing.id))
       .returning()
@@ -77,6 +78,7 @@ export function markLessonComplete(userId: number, lessonId: number) {
       lessonId,
       status: LessonProgressStatus.Completed,
       completedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     })
     .returning()
     .get();
@@ -91,7 +93,10 @@ export function markLessonInProgress(userId: number, lessonId: number) {
     }
     return db
       .update(lessonProgress)
-      .set({ status: LessonProgressStatus.InProgress })
+      .set({
+        status: LessonProgressStatus.InProgress,
+        updatedAt: new Date().toISOString(),
+      })
       .where(eq(lessonProgress.id, existing.id))
       .returning()
       .get();
@@ -103,6 +108,7 @@ export function markLessonInProgress(userId: number, lessonId: number) {
       userId,
       lessonId,
       status: LessonProgressStatus.InProgress,
+      updatedAt: new Date().toISOString(),
     })
     .returning()
     .get();

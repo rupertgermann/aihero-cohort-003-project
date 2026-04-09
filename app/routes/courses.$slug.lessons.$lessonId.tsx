@@ -26,9 +26,14 @@ import {
   getBestAttempt,
 } from "~/services/quizService";
 import { computeResult } from "~/services/quizScoringService";
-import { LessonProgressStatus } from "~/db/schema";
+import {
+  LessonCommentStatus,
+  LessonProgressStatus,
+  UserRole,
+} from "~/db/schema";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent } from "~/components/ui/card";
+import { Textarea } from "~/components/ui/textarea";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -37,9 +42,11 @@ import {
   ChevronRight,
   Circle,
   Clock,
+  EyeOff,
   Github,
   HelpCircle,
   MapPin,
+  MessageSquare,
   PlayCircle,
   ShieldAlert,
   XCircle,
@@ -55,6 +62,15 @@ import { resolveCountry } from "~/lib/country.server";
 import { checkPppAccess, COUNTRIES } from "~/lib/ppp";
 import { findPurchase } from "~/services/purchaseService";
 import { parseFormData, parseParams } from "~/lib/validation";
+import { getUserById } from "~/services/userService";
+import {
+  createLessonComment,
+  getLessonCommentById,
+  getLessonCommentsForLesson,
+  hideLessonComment,
+  restoreLessonComment,
+} from "~/services/lessonCommentService";
+import { UserAvatar } from "~/components/user-avatar";
 
 const lessonParamsSchema = z.object({
   slug: z.string().min(1),
@@ -63,6 +79,15 @@ const lessonParamsSchema = z.object({
 
 const markCompleteSchema = z.object({
   intent: z.literal("mark-complete"),
+});
+
+const submitCommentSchema = z.object({
+  intent: z.literal("submit-comment"),
+  body: z.string().trim().min(1, "Comment cannot be empty.").max(1000),
+});
+
+const moderateCommentSchema = z.object({
+  commentId: z.coerce.number().int(),
 });
 
 export function meta({ data: loaderData }: Route.MetaArgs) {
@@ -76,6 +101,20 @@ type FlatLesson = {
   title: string;
   moduleId: number;
   moduleTitle: string;
+};
+
+type LessonComment = {
+  id: number;
+  lessonId: number;
+  userId: number;
+  body: string | null;
+  status: LessonCommentStatus;
+  moderatedByUserId: number | null;
+  moderatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  authorName: string;
+  authorAvatarUrl: string | null;
 };
 
 function flattenCourseLessons(course: {
@@ -133,6 +172,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   const currentUserId = await getCurrentUserId(request);
+  const currentUser = currentUserId ? getUserById(currentUserId) : null;
   let enrolled = false;
   let lessonStatus: string | null = null;
   let lastWatchPosition = 0;
@@ -248,6 +288,23 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     }
   }
 
+  const canModerateComments =
+    !!currentUser &&
+    (currentUser.role === UserRole.Admin ||
+      currentUserId === course.instructorId);
+  const canViewComments = enrolled || canModerateComments;
+  const canPostComments =
+    !!currentUser && currentUser.role === UserRole.Student && enrolled;
+  const comments = canViewComments
+    ? getLessonCommentsForLesson(lessonId, true).map((comment) => ({
+        ...comment,
+        body:
+          canModerateComments || comment.status === LessonCommentStatus.Visible
+            ? comment.body
+            : null,
+      }))
+    : [];
+
   return {
     course: {
       id: courseWithDetails.id,
@@ -281,6 +338,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     pppBlocked,
     pppBlockedCountry,
     pppPurchaseCountry,
+    comments,
+    canViewComments,
+    canPostComments,
+    canModerateComments,
   };
 }
 
@@ -297,12 +358,87 @@ export async function action({ params, request }: Route.ActionArgs) {
     throw data("You must be logged in", { status: 401 });
   }
 
+  const currentUser = getUserById(currentUserId);
+  if (!currentUser) {
+    throw data("User not found", { status: 404 });
+  }
+
+  const lesson = getLessonById(lessonId);
+  if (!lesson) {
+    throw data("Lesson not found", { status: 404 });
+  }
+
+  const mod = getModuleById(lesson.moduleId);
+  if (!mod || mod.courseId !== course.id) {
+    throw data("Lesson not found in this course", { status: 404 });
+  }
+
   const formData = await request.formData();
   const intent = formData.get("intent");
 
   if (intent === "mark-complete") {
     markLessonComplete(currentUserId, lessonId);
     return { success: true };
+  }
+
+  if (intent === "submit-comment") {
+    const parsed = parseFormData(formData, submitCommentSchema);
+    if (!parsed.success) {
+      return data(
+        { error: Object.values(parsed.errors)[0] ?? "Invalid comment." },
+        { status: 400 }
+      );
+    }
+
+    if (currentUser.role !== UserRole.Student) {
+      return data(
+        { error: "Only enrolled students can comment on lessons." },
+        { status: 403 }
+      );
+    }
+
+    if (!isUserEnrolled(currentUserId, course.id)) {
+      return data(
+        { error: "You must be enrolled in this course to comment." },
+        { status: 403 }
+      );
+    }
+
+    createLessonComment(currentUserId, lessonId, parsed.data.body);
+    return { success: true, field: "comment" };
+  }
+
+  if (intent === "hide-comment" || intent === "restore-comment") {
+    if (
+      currentUser.role !== UserRole.Admin &&
+      currentUserId !== course.instructorId
+    ) {
+      return data(
+        { error: "Only instructors and admins can moderate comments." },
+        { status: 403 }
+      );
+    }
+
+    const parsed = parseFormData(formData, moderateCommentSchema);
+    if (!parsed.success) {
+      return data({ error: "Invalid comment." }, { status: 400 });
+    }
+
+    const comment = getLessonCommentById(parsed.data.commentId);
+    if (!comment || comment.lessonId !== lessonId) {
+      return data(
+        { error: "Comment not found for this lesson." },
+        { status: 404 }
+      );
+    }
+
+    if (intent === "hide-comment") {
+      hideLessonComment(comment.id, currentUserId);
+      return { success: true, field: "comment-moderation" };
+    }
+
+    restoreLessonComment(comment.id, currentUserId);
+    return { success: true, field: "comment-moderation" };
   }
 
   if (intent === "submit-quiz") {
@@ -382,6 +518,10 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
     pppBlocked,
     pppBlockedCountry,
     pppPurchaseCountry,
+    comments,
+    canViewComments,
+    canPostComments,
+    canModerateComments,
   } = loaderData;
   const [autoplay, toggleAutoplay] = useAutoplay();
   const fetcher = useFetcher({ key: `mark-complete-${lesson.id}` });
@@ -592,6 +732,14 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
             </div>
           )}
 
+          {canViewComments && (
+            <LessonCommentsSection
+              comments={comments}
+              canPostComments={canPostComments}
+              canModerateComments={canModerateComments}
+            />
+          )}
+
           {/* Prev/Next Navigation */}
           <div className="flex items-center justify-between border-t pt-6">
             {prevLesson ? (
@@ -642,6 +790,200 @@ export default function LessonViewer({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+function formatCommentDate(timestamp: string) {
+  return new Date(timestamp).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function LessonCommentsSection({
+  comments,
+  canPostComments,
+  canModerateComments,
+}: {
+  comments: LessonComment[];
+  canPostComments: boolean;
+  canModerateComments: boolean;
+}) {
+  const commentFetcher = useFetcher();
+  const [body, setBody] = useState("");
+
+  useEffect(() => {
+    if (
+      commentFetcher.state === "idle" &&
+      commentFetcher.data?.success &&
+      commentFetcher.data?.field === "comment"
+    ) {
+      setBody("");
+      toast.success("Comment posted.");
+    }
+
+    if (commentFetcher.state === "idle" && commentFetcher.data?.error) {
+      toast.error(commentFetcher.data.error);
+    }
+  }, [commentFetcher.state, commentFetcher.data]);
+
+  return (
+    <section className="mb-8 border-t pt-8">
+      <div className="mb-6 flex items-center gap-2">
+        <MessageSquare className="size-5 text-muted-foreground" />
+        <h2 className="text-xl font-semibold">Lesson Discussion</h2>
+        <span className="text-sm text-muted-foreground">
+          ({comments.length})
+        </span>
+      </div>
+
+      {canPostComments && (
+        <commentFetcher.Form method="post" className="mb-6 space-y-3">
+          <input type="hidden" name="intent" value="submit-comment" />
+          <Textarea
+            name="body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            maxLength={1000}
+            placeholder="Share a question, insight, or point of confusion from this lesson..."
+            className="min-h-28"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-muted-foreground">
+              {body.length}/1000 characters
+            </span>
+            <Button
+              type="submit"
+              disabled={commentFetcher.state !== "idle" || !body.trim()}
+            >
+              {commentFetcher.state !== "idle" ? "Posting..." : "Post Comment"}
+            </Button>
+          </div>
+        </commentFetcher.Form>
+      )}
+
+      {comments.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            No comments yet. Start the discussion.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {comments.map((comment) => {
+            const isHidden = comment.status === LessonCommentStatus.Hidden;
+            const displayBody =
+              isHidden && !canModerateComments
+                ? "This comment was hidden by the instructor."
+                : comment.body;
+
+            return (
+              <Card key={comment.id}>
+                <CardContent className="space-y-3 py-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar
+                        name={comment.authorName}
+                        avatarUrl={comment.authorAvatarUrl}
+                        className="size-9"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {comment.authorName}
+                          </span>
+                          {isHidden && (
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                              Hidden
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCommentDate(comment.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {canModerateComments && (
+                      <LessonCommentModerationButton
+                        commentId={comment.id}
+                        status={comment.status}
+                      />
+                    )}
+                  </div>
+
+                  <p
+                    className={cn(
+                      "whitespace-pre-wrap text-sm leading-6",
+                      isHidden &&
+                        !canModerateComments &&
+                        "italic text-muted-foreground"
+                    )}
+                  >
+                    {displayBody}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LessonCommentModerationButton({
+  commentId,
+  status,
+}: {
+  commentId: number;
+  status: LessonCommentStatus;
+}) {
+  const fetcher = useFetcher();
+  const isHidden = status === LessonCommentStatus.Hidden;
+
+  useEffect(() => {
+    if (
+      fetcher.state === "idle" &&
+      fetcher.data?.success &&
+      fetcher.data?.field === "comment-moderation"
+    ) {
+      toast.success(isHidden ? "Comment restored." : "Comment hidden.");
+    }
+
+    if (fetcher.state === "idle" && fetcher.data?.error) {
+      toast.error(fetcher.data.error);
+    }
+  }, [fetcher.state, fetcher.data, isHidden]);
+
+  return (
+    <fetcher.Form method="post">
+      <input
+        type="hidden"
+        name="intent"
+        value={isHidden ? "restore-comment" : "hide-comment"}
+      />
+      <input type="hidden" name="commentId" value={commentId} />
+      <Button
+        type="submit"
+        variant="outline"
+        size="sm"
+        disabled={fetcher.state !== "idle"}
+      >
+        {isHidden ? (
+          <>
+            <RotateCcw className="mr-1.5 size-4" />
+            Restore
+          </>
+        ) : (
+          <>
+            <EyeOff className="mr-1.5 size-4" />
+            Hide
+          </>
+        )}
+      </Button>
+    </fetcher.Form>
   );
 }
 

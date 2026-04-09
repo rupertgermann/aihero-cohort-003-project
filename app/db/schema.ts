@@ -1,4 +1,13 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export enum UserRole {
   Student = "student",
@@ -16,6 +25,11 @@ export enum LessonProgressStatus {
   NotStarted = "not_started",
   InProgress = "in_progress",
   Completed = "completed",
+}
+
+export enum LessonCommentStatus {
+  Visible = "visible",
+  Hidden = "hidden",
 }
 
 export enum QuestionType {
@@ -126,6 +140,9 @@ export const lessonProgress = sqliteTable("lesson_progress", {
     .references(() => lessons.id),
   status: text("status").notNull().$type<LessonProgressStatus>(),
   completedAt: text("completed_at"),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
 });
 
 export const quizzes = sqliteTable("quizzes", {
@@ -253,3 +270,93 @@ export const videoWatchEvents = sqliteTable("video_watch_events", {
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
 });
+
+export const lessonComments = sqliteTable(
+  "lesson_comments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    lessonId: integer("lesson_id")
+      .notNull()
+      .references(() => lessons.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    body: text("body").notNull(),
+    status: text("status")
+      .notNull()
+      .$type<LessonCommentStatus>()
+      .default(LessonCommentStatus.Visible),
+    moderatedByUserId: integer("moderated_by_user_id").references(
+      () => users.id
+    ),
+    moderatedAt: text("moderated_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    index("lesson_comments_lesson_status_idx").on(table.lessonId, table.status),
+    check(
+      "lesson_comments_body_length_check",
+      sql`length(${table.body}) >= 1 AND length(${table.body}) <= 1000`
+    ),
+  ]
+);
+
+export const streakActivities = sqliteTable("streak_activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  date: text("date").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const xpEvents = sqliteTable("xp_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  amount: integer("amount").notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceId: integer("source_id").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+export const courseRatings = sqliteTable(
+  "course_ratings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    courseId: integer("course_id")
+      .notNull()
+      .references(() => courses.id),
+    rating: integer("rating").notNull(), // 1-5
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    uniqueIndex("course_ratings_user_course_idx").on(
+      table.userId,
+      table.courseId
+    ),
+    index("course_ratings_course_id_idx").on(table.courseId),
+    check(
+      "course_ratings_rating_check",
+      sql`${table.rating} >= 1 AND ${table.rating} <= 5`
+    ),
+  ]
+);
