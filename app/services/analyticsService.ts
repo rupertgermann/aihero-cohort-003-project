@@ -1,4 +1,4 @@
-import { and, avg, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, avg, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "~/db";
 import {
   courseRatings,
@@ -80,12 +80,16 @@ function assertRollupAccess(
   viewerRole: UserRole
 ) {
   if (viewerRole !== UserRole.Admin && viewerRole !== UserRole.Instructor) {
-    throw new Error("Unauthorized: only instructors and admins may access analytics");
+    throw new Error(
+      "Unauthorized: only instructors and admins may access analytics"
+    );
   }
 
   if (viewerRole === UserRole.Instructor) {
     if (instructorId === null || instructorId !== viewerId) {
-      throw new Error("Forbidden: instructors may only access their own analytics");
+      throw new Error(
+        "Forbidden: instructors may only access their own analytics"
+      );
     }
   }
 }
@@ -107,7 +111,9 @@ function computeCompletionRate(courseIds: number[]): number {
     .groupBy(modules.courseId)
     .all();
 
-  const lessonCountMap = new Map(lessonCountRows.map((r) => [r.courseId, r.total]));
+  const lessonCountMap = new Map(
+    lessonCountRows.map((r) => [r.courseId, r.total])
+  );
 
   // All enrollments for these courses (not date-scoped — completion rate looks at the full enrolled base)
   const allEnrollments = db
@@ -192,11 +198,17 @@ function assertCourseAccess(
   viewerRole: UserRole
 ): { id: number; title: string; instructorId: number } {
   if (viewerRole !== UserRole.Admin && viewerRole !== UserRole.Instructor) {
-    throw new Error("Unauthorized: only instructors and admins may access analytics");
+    throw new Error(
+      "Unauthorized: only instructors and admins may access analytics"
+    );
   }
 
   const course = db
-    .select({ id: courses.id, title: courses.title, instructorId: courses.instructorId })
+    .select({
+      id: courses.id,
+      title: courses.title,
+      instructorId: courses.instructorId,
+    })
     .from(courses)
     .where(eq(courses.id, courseId))
     .get();
@@ -234,8 +246,7 @@ export function getRollupMetrics(
   viewerIdOrRole: number | UserRole,
   maybeViewerRole?: UserRole
 ): RollupMetrics {
-  const viewerId =
-    typeof viewerIdOrRole === "number" ? viewerIdOrRole : null;
+  const viewerId = typeof viewerIdOrRole === "number" ? viewerIdOrRole : null;
   const viewerRole =
     typeof viewerIdOrRole === "number" ? maybeViewerRole : viewerIdOrRole;
 
@@ -252,14 +263,24 @@ export function getRollupMetrics(
   const courseIds = getScopedCourseIds(instructorId);
 
   if (courseIds.length === 0) {
-    return { grossRevenue: 0, newEnrollments: 0, activeLearners: 0, completionRate: 0 };
+    return {
+      grossRevenue: 0,
+      newEnrollments: 0,
+      activeLearners: 0,
+      completionRate: 0,
+    };
   }
 
   // Gross Revenue (time-scoped)
   const revenueRow = db
     .select({ total: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)` })
     .from(purchases)
-    .where(and(inArray(purchases.courseId, courseIds), gte(purchases.createdAt, cutoff)))
+    .where(
+      and(
+        inArray(purchases.courseId, courseIds),
+        gte(purchases.createdAt, cutoff)
+      )
+    )
     .get();
   const grossRevenue = revenueRow?.total ?? 0;
 
@@ -267,7 +288,12 @@ export function getRollupMetrics(
   const enrollRow = db
     .select({ count: sql<number>`count(*)` })
     .from(enrollments)
-    .where(and(inArray(enrollments.courseId, courseIds), gte(enrollments.enrolledAt, cutoff)))
+    .where(
+      and(
+        inArray(enrollments.courseId, courseIds),
+        gte(enrollments.enrolledAt, cutoff)
+      )
+    )
     .get();
   const newEnrollments = enrollRow?.count ?? 0;
 
@@ -309,8 +335,7 @@ export function getCourseRows(
   viewerIdOrRole: number | UserRole,
   maybeViewerRole?: UserRole
 ): CourseRow[] {
-  const viewerId =
-    typeof viewerIdOrRole === "number" ? viewerIdOrRole : null;
+  const viewerId = typeof viewerIdOrRole === "number" ? viewerIdOrRole : null;
   const viewerRole =
     typeof viewerIdOrRole === "number" ? maybeViewerRole : viewerIdOrRole;
 
@@ -342,7 +367,12 @@ export function getCourseRows(
       total: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)`,
     })
     .from(purchases)
-    .where(and(inArray(purchases.courseId, courseIds), gte(purchases.createdAt, cutoff)))
+    .where(
+      and(
+        inArray(purchases.courseId, courseIds),
+        gte(purchases.createdAt, cutoff)
+      )
+    )
     .groupBy(purchases.courseId)
     .all();
   const revenueMap = new Map(revenueRows.map((r) => [r.courseId, r.total]));
@@ -354,7 +384,12 @@ export function getCourseRows(
       count: sql<number>`count(*)`,
     })
     .from(enrollments)
-    .where(and(inArray(enrollments.courseId, courseIds), gte(enrollments.enrolledAt, cutoff)))
+    .where(
+      and(
+        inArray(enrollments.courseId, courseIds),
+        gte(enrollments.enrolledAt, cutoff)
+      )
+    )
     .groupBy(enrollments.courseId)
     .all();
   const newEnrollMap = new Map(newEnrollRows.map((r) => [r.courseId, r.count]));
@@ -417,7 +452,9 @@ export function getCourseRows(
     .where(inArray(enrollments.courseId, courseIds))
     .groupBy(enrollments.courseId)
     .all();
-  const totalEnrollMap = new Map(totalEnrollRows.map((r) => [r.courseId, r.count]));
+  const totalEnrollMap = new Map(
+    totalEnrollRows.map((r) => [r.courseId, r.count])
+  );
 
   // ── Assemble rows ──────────────────────────────────────────────────────────
   return courseRows.map((course) => {
@@ -425,7 +462,10 @@ export function getCourseRows(
     const newEnrollments = newEnrollMap.get(course.id) ?? 0;
     const activeLearners = activeMap.get(course.id) ?? 0;
     const completionRate = completionRateMap.get(course.id) ?? 0;
-    const ratingInfo = ratingMap.get(course.id) ?? { avgRating: null, ratingCount: 0 };
+    const ratingInfo = ratingMap.get(course.id) ?? {
+      avgRating: null,
+      ratingCount: 0,
+    };
     const totalEnrolled = totalEnrollMap.get(course.id) ?? 0;
 
     const warnings: CourseWarnings = {
@@ -433,7 +473,8 @@ export function getCourseRows(
       lowCompletion: completionRate < WARNING_THRESHOLDS.LOW_COMPLETION_RATE,
       lowRating:
         ratingInfo.avgRating !== null &&
-        ratingInfo.ratingCount >= WARNING_THRESHOLDS.MIN_RATINGS_FOR_LOW_RATING &&
+        ratingInfo.ratingCount >=
+          WARNING_THRESHOLDS.MIN_RATINGS_FOR_LOW_RATING &&
         ratingInfo.avgRating < WARNING_THRESHOLDS.LOW_RATING,
     };
 
@@ -474,7 +515,9 @@ export function getCourseDetailMetrics(
   const revenueRow = db
     .select({ total: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)` })
     .from(purchases)
-    .where(and(eq(purchases.courseId, courseId), gte(purchases.createdAt, cutoff)))
+    .where(
+      and(eq(purchases.courseId, courseId), gte(purchases.createdAt, cutoff))
+    )
     .get();
   const grossRevenue = revenueRow?.total ?? 0;
 
@@ -482,7 +525,12 @@ export function getCourseDetailMetrics(
   const enrollRow = db
     .select({ count: sql<number>`count(*)` })
     .from(enrollments)
-    .where(and(eq(enrollments.courseId, courseId), gte(enrollments.enrolledAt, cutoff)))
+    .where(
+      and(
+        eq(enrollments.courseId, courseId),
+        gte(enrollments.enrolledAt, cutoff)
+      )
+    )
     .get();
   const newEnrollments = enrollRow?.count ?? 0;
 
@@ -493,10 +541,7 @@ export function getCourseDetailMetrics(
     .innerJoin(lessons, eq(lessonProgress.lessonId, lessons.id))
     .innerJoin(modules, eq(lessons.moduleId, modules.id))
     .where(
-      and(
-        eq(modules.courseId, courseId),
-        gte(lessonProgress.updatedAt, cutoff)
-      )
+      and(eq(modules.courseId, courseId), gte(lessonProgress.updatedAt, cutoff))
     )
     .get();
   const activeLearners = activeRow?.count ?? 0;
@@ -611,13 +656,21 @@ export function getStudentProgressRows(
     .all();
 
   const progressMap = new Map(
-    progressRows.map((r) => [r.userId, { completed: r.completed, lastActivityAt: r.lastActivityAt }])
+    progressRows.map((r) => [
+      r.userId,
+      { completed: r.completed, lastActivityAt: r.lastActivityAt },
+    ])
   );
 
   return enrollmentRows.map((e) => {
-    const prog = progressMap.get(e.userId) ?? { completed: 0, lastActivityAt: null };
+    const prog = progressMap.get(e.userId) ?? {
+      completed: 0,
+      lastActivityAt: null,
+    };
     const progressPercent =
-      totalLessons === 0 ? 0 : Math.round((prog.completed / totalLessons) * 100);
+      totalLessons === 0
+        ? 0
+        : Math.round((prog.completed / totalLessons) * 100);
     const isCompleted = totalLessons > 0 && prog.completed >= totalLessons;
 
     return {
@@ -630,4 +683,431 @@ export function getStudentProgressRows(
       isCompleted,
     };
   });
+}
+
+// ─── TimePeriod-based Analytics API ───────────────────────────────────────────
+// Used by admin.analytics.tsx, admin.instructor.$instructorId.analytics.tsx,
+// and the shared AnalyticsDashboard component.
+
+export type TimePeriod = "7d" | "30d" | "12m" | "all";
+
+export interface AnalyticsSummary {
+  totalRevenue: number;
+  totalEnrollments: number;
+  averageRating: number | null;
+  ratingCount: number;
+}
+
+export interface RevenueDataPoint {
+  date: string;
+  revenue: number;
+}
+
+export interface CourseAnalytics {
+  courseId: number;
+  title: string;
+  listPrice: number;
+  revenue: number;
+  salesCount: number;
+  enrollmentCount: number;
+  averageRating: number | null;
+  ratingCount: number;
+}
+
+export interface AdminAnalyticsSummary {
+  totalRevenue: number;
+  totalEnrollments: number;
+  topEarningCourse: { title: string; revenue: number } | null;
+}
+
+export interface AdminCourseAnalytics {
+  courseId: number;
+  title: string;
+  instructorName: string;
+  listPrice: number;
+  revenue: number;
+  salesCount: number;
+  enrollmentCount: number;
+  averageRating: number | null;
+}
+
+// ─── Internal Helpers ─────────────────────────────────────────────────────────
+
+function getPeriodCutoff(period: TimePeriod): string {
+  if (period === "all") return "1970-01-01T00:00:00.000Z";
+  const d = new Date();
+  if (period === "7d") d.setDate(d.getDate() - 7);
+  else if (period === "30d") d.setDate(d.getDate() - 30);
+  else d.setFullYear(d.getFullYear() - 1);
+  return d.toISOString();
+}
+
+function getDateGroupFormat(period: TimePeriod): string {
+  return period === "7d" || period === "30d" ? "%Y-%m-%d" : "%Y-%m";
+}
+
+// ─── Instructor-scoped functions ──────────────────────────────────────────────
+
+export function getAnalyticsSummary({
+  instructorId,
+  period,
+}: {
+  instructorId: number;
+  period: TimePeriod;
+}): AnalyticsSummary {
+  const courseIds = getScopedCourseIds(instructorId);
+  if (courseIds.length === 0) {
+    return {
+      totalRevenue: 0,
+      totalEnrollments: 0,
+      averageRating: null,
+      ratingCount: 0,
+    };
+  }
+
+  const cutoff = getPeriodCutoff(period);
+
+  const revenueRow = db
+    .select({ total: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)` })
+    .from(purchases)
+    .where(
+      and(
+        inArray(purchases.courseId, courseIds),
+        gte(purchases.createdAt, cutoff)
+      )
+    )
+    .get();
+
+  const enrollRow = db
+    .select({ count: sql<number>`count(*)` })
+    .from(enrollments)
+    .where(
+      and(
+        inArray(enrollments.courseId, courseIds),
+        gte(enrollments.enrolledAt, cutoff)
+      )
+    )
+    .get();
+
+  const ratingRow = db
+    .select({
+      avgRating: avg(courseRatings.rating),
+      ratingCount: sql<number>`count(*)`,
+    })
+    .from(courseRatings)
+    .where(inArray(courseRatings.courseId, courseIds))
+    .get();
+
+  return {
+    totalRevenue: revenueRow?.total ?? 0,
+    totalEnrollments: enrollRow?.count ?? 0,
+    averageRating:
+      ratingRow?.avgRating !== null && ratingRow?.avgRating !== undefined
+        ? Number(ratingRow.avgRating)
+        : null,
+    ratingCount: ratingRow?.ratingCount ?? 0,
+  };
+}
+
+export function getRevenueTimeSeries({
+  instructorId,
+  period,
+}: {
+  instructorId: number;
+  period: TimePeriod;
+}): RevenueDataPoint[] {
+  const courseIds = getScopedCourseIds(instructorId);
+  if (courseIds.length === 0) return [];
+
+  const cutoff = getPeriodCutoff(period);
+  const fmt = getDateGroupFormat(period);
+
+  return db
+    .select({
+      date: sql<string>`strftime(${fmt}, ${purchases.createdAt})`,
+      revenue: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)`,
+    })
+    .from(purchases)
+    .where(
+      and(
+        inArray(purchases.courseId, courseIds),
+        gte(purchases.createdAt, cutoff)
+      )
+    )
+    .groupBy(sql`strftime(${fmt}, ${purchases.createdAt})`)
+    .orderBy(sql`strftime(${fmt}, ${purchases.createdAt})`)
+    .all();
+}
+
+export function getPerCourseBreakdown({
+  instructorId,
+  period,
+}: {
+  instructorId: number;
+  period: TimePeriod;
+}): CourseAnalytics[] {
+  const courseIds = getScopedCourseIds(instructorId);
+  if (courseIds.length === 0) return [];
+
+  const cutoff = getPeriodCutoff(period);
+
+  const courseRows = db
+    .select({ id: courses.id, title: courses.title, price: courses.price })
+    .from(courses)
+    .where(inArray(courses.id, courseIds))
+    .all();
+
+  const revenueRows = db
+    .select({
+      courseId: purchases.courseId,
+      total: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)`,
+      salesCount: sql<number>`count(*)`,
+    })
+    .from(purchases)
+    .where(
+      and(
+        inArray(purchases.courseId, courseIds),
+        gte(purchases.createdAt, cutoff)
+      )
+    )
+    .groupBy(purchases.courseId)
+    .all();
+  const revenueMap = new Map(
+    revenueRows.map((r) => [
+      r.courseId,
+      { total: r.total, salesCount: r.salesCount },
+    ])
+  );
+
+  const enrollRows = db
+    .select({ courseId: enrollments.courseId, count: sql<number>`count(*)` })
+    .from(enrollments)
+    .where(
+      and(
+        inArray(enrollments.courseId, courseIds),
+        gte(enrollments.enrolledAt, cutoff)
+      )
+    )
+    .groupBy(enrollments.courseId)
+    .all();
+  const enrollMap = new Map(enrollRows.map((r) => [r.courseId, r.count]));
+
+  const ratingRows = db
+    .select({
+      courseId: courseRatings.courseId,
+      avgRating: avg(courseRatings.rating),
+      ratingCount: sql<number>`count(*)`,
+    })
+    .from(courseRatings)
+    .where(inArray(courseRatings.courseId, courseIds))
+    .groupBy(courseRatings.courseId)
+    .all();
+  const ratingMap = new Map(
+    ratingRows.map((r) => [
+      r.courseId,
+      {
+        avgRating: r.avgRating !== null ? Number(r.avgRating) : null,
+        ratingCount: r.ratingCount,
+      },
+    ])
+  );
+
+  return courseRows.map((course) => {
+    const rev = revenueMap.get(course.id) ?? { total: 0, salesCount: 0 };
+    const rating = ratingMap.get(course.id) ?? {
+      avgRating: null,
+      ratingCount: 0,
+    };
+    return {
+      courseId: course.id,
+      title: course.title,
+      listPrice: course.price,
+      revenue: rev.total,
+      salesCount: rev.salesCount,
+      enrollmentCount: enrollMap.get(course.id) ?? 0,
+      averageRating: rating.avgRating,
+      ratingCount: rating.ratingCount,
+    };
+  });
+}
+
+// ─── Admin-scoped functions ───────────────────────────────────────────────────
+
+export function getAdminAnalyticsSummary({
+  period,
+}: {
+  period: TimePeriod;
+}): AdminAnalyticsSummary {
+  const cutoff = getPeriodCutoff(period);
+
+  const revenueRow = db
+    .select({ total: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)` })
+    .from(purchases)
+    .where(gte(purchases.createdAt, cutoff))
+    .get();
+
+  const enrollRow = db
+    .select({ count: sql<number>`count(*)` })
+    .from(enrollments)
+    .where(gte(enrollments.enrolledAt, cutoff))
+    .get();
+
+  const topCourseRow = db
+    .select({
+      title: courses.title,
+      revenue: sql<number>`sum(${purchases.pricePaid})`,
+    })
+    .from(purchases)
+    .innerJoin(courses, eq(courses.id, purchases.courseId))
+    .where(gte(purchases.createdAt, cutoff))
+    .groupBy(purchases.courseId)
+    .orderBy(sql`sum(${purchases.pricePaid}) desc`)
+    .limit(1)
+    .get();
+
+  return {
+    totalRevenue: revenueRow?.total ?? 0,
+    totalEnrollments: enrollRow?.count ?? 0,
+    topEarningCourse: topCourseRow
+      ? { title: topCourseRow.title, revenue: topCourseRow.revenue }
+      : null,
+  };
+}
+
+export function getAdminRevenueTimeSeries({
+  period,
+}: {
+  period: TimePeriod;
+}): RevenueDataPoint[] {
+  const cutoff = getPeriodCutoff(period);
+  const fmt = getDateGroupFormat(period);
+
+  return db
+    .select({
+      date: sql<string>`strftime(${fmt}, ${purchases.createdAt})`,
+      revenue: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)`,
+    })
+    .from(purchases)
+    .where(gte(purchases.createdAt, cutoff))
+    .groupBy(sql`strftime(${fmt}, ${purchases.createdAt})`)
+    .orderBy(sql`strftime(${fmt}, ${purchases.createdAt})`)
+    .all();
+}
+
+export function getAdminPerCourseBreakdown({
+  period,
+  instructorId,
+}: {
+  period: TimePeriod;
+  instructorId?: number;
+}): AdminCourseAnalytics[] {
+  const cutoff = getPeriodCutoff(period);
+
+  const courseRows =
+    instructorId !== undefined
+      ? db
+          .select({
+            id: courses.id,
+            title: courses.title,
+            price: courses.price,
+            instructorId: courses.instructorId,
+          })
+          .from(courses)
+          .where(eq(courses.instructorId, instructorId))
+          .all()
+      : db
+          .select({
+            id: courses.id,
+            title: courses.title,
+            price: courses.price,
+            instructorId: courses.instructorId,
+          })
+          .from(courses)
+          .all();
+
+  if (courseRows.length === 0) return [];
+
+  const courseIds = courseRows.map((c) => c.id);
+  const instructorIds = [...new Set(courseRows.map((c) => c.instructorId))];
+  const instructorRows = db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(inArray(users.id, instructorIds))
+    .all();
+  const instructorMap = new Map(instructorRows.map((u) => [u.id, u.name]));
+
+  const revenueRows = db
+    .select({
+      courseId: purchases.courseId,
+      total: sql<number>`coalesce(sum(${purchases.pricePaid}), 0)`,
+      salesCount: sql<number>`count(*)`,
+    })
+    .from(purchases)
+    .where(
+      and(
+        inArray(purchases.courseId, courseIds),
+        gte(purchases.createdAt, cutoff)
+      )
+    )
+    .groupBy(purchases.courseId)
+    .all();
+  const revenueMap = new Map(
+    revenueRows.map((r) => [
+      r.courseId,
+      { total: r.total, salesCount: r.salesCount },
+    ])
+  );
+
+  const enrollRows = db
+    .select({ courseId: enrollments.courseId, count: sql<number>`count(*)` })
+    .from(enrollments)
+    .where(
+      and(
+        inArray(enrollments.courseId, courseIds),
+        gte(enrollments.enrolledAt, cutoff)
+      )
+    )
+    .groupBy(enrollments.courseId)
+    .all();
+  const enrollMap = new Map(enrollRows.map((r) => [r.courseId, r.count]));
+
+  const ratingRows = db
+    .select({
+      courseId: courseRatings.courseId,
+      avgRating: avg(courseRatings.rating),
+    })
+    .from(courseRatings)
+    .where(inArray(courseRatings.courseId, courseIds))
+    .groupBy(courseRatings.courseId)
+    .all();
+  const ratingMap = new Map(
+    ratingRows.map((r) => [
+      r.courseId,
+      r.avgRating !== null ? Number(r.avgRating) : null,
+    ])
+  );
+
+  return courseRows.map((course) => {
+    const rev = revenueMap.get(course.id) ?? { total: 0, salesCount: 0 };
+    return {
+      courseId: course.id,
+      title: course.title,
+      instructorName: instructorMap.get(course.instructorId) ?? "Unknown",
+      listPrice: course.price,
+      revenue: rev.total,
+      salesCount: rev.salesCount,
+      enrollmentCount: enrollMap.get(course.id) ?? 0,
+      averageRating: ratingMap.get(course.id) ?? null,
+    };
+  });
+}
+
+export function getInstructorsWithCourses(): { id: number; name: string }[] {
+  return db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .innerJoin(courses, eq(courses.instructorId, users.id))
+    .groupBy(users.id, users.name)
+    .orderBy(asc(users.name))
+    .all();
 }

@@ -1,6 +1,6 @@
 import { eq, asc } from "drizzle-orm";
 import { db } from "~/db";
-import { lessonComments, users } from "~/db/schema";
+import { lessonComments, users, LessonCommentStatus } from "~/db/schema";
 
 // ─── Comment Service ───
 // Handles lesson comments: create, list, soft-delete.
@@ -12,9 +12,9 @@ export function getCommentsForLesson(lessonId: number) {
       id: lessonComments.id,
       lessonId: lessonComments.lessonId,
       userId: lessonComments.userId,
-      content: lessonComments.content,
+      body: lessonComments.body,
+      status: lessonComments.status,
       createdAt: lessonComments.createdAt,
-      deletedAt: lessonComments.deletedAt,
       authorName: users.name,
       authorAvatarUrl: users.avatarUrl,
     })
@@ -25,10 +25,10 @@ export function getCommentsForLesson(lessonId: number) {
     .all();
 }
 
-export function addComment(lessonId: number, userId: number, content: string) {
+export function addComment(lessonId: number, userId: number, body: string) {
   return db
     .insert(lessonComments)
-    .values({ lessonId, userId, content })
+    .values({ lessonId, userId, body })
     .returning()
     .get();
 }
@@ -44,7 +44,7 @@ export function getCommentById(commentId: number) {
 export function softDeleteComment(commentId: number) {
   return db
     .update(lessonComments)
-    .set({ deletedAt: new Date().toISOString() })
+    .set({ status: LessonCommentStatus.Hidden })
     .where(eq(lessonComments.id, commentId))
     .returning()
     .get();

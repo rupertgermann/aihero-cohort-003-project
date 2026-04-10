@@ -64,6 +64,20 @@
       "when": 1775228100000,
       "tag": "0008_great_doctor_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1775841948414,
+      "tag": "0009_sparkling_captain_cross",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1775843688215,
+      "tag": "0010_glossy_toxin",
+      "breakpoints": true
     }
   ]
 }

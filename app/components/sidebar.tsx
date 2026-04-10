@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { cn } from "~/lib/utils";
 import { UserRole } from "~/db/schema";
 import { UserAvatar } from "~/components/user-avatar";
+import { NotificationBell } from "~/components/notification-bell";
 import {
   BookOpen,
   LayoutDashboard,
@@ -35,10 +36,31 @@ interface RecentCourse {
   progress: number;
 }
 
+interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  linkUrl: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+interface Gamification {
+  level: number;
+  currentLevelXp: number;
+  xpForNextLevel: number;
+  totalXp: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
 interface SidebarProps {
   currentUser: CurrentUser | null;
   recentCourses?: RecentCourse[];
   isTeamAdmin?: boolean;
+  notifications?: Notification[];
+  notificationUnreadCount?: number;
+  gamification?: Gamification | null;
 }
 
 interface NavItem {
@@ -103,6 +125,9 @@ export function Sidebar({
   currentUser,
   recentCourses = [],
   isTeamAdmin = false,
+  notifications = [],
+  notificationUnreadCount = 0,
+  gamification,
 }: SidebarProps) {
   const currentUserRole = currentUser?.role ?? null;
   const [isDark, setIsDark] = useState(false);
@@ -228,6 +253,12 @@ export function Sidebar({
                 {currentUser.role}
               </div>
             </div>
+            {notifications.length > 0 || notificationUnreadCount > 0 ? (
+              <NotificationBell
+                notifications={notifications}
+                unreadCount={notificationUnreadCount}
+              />
+            ) : null}
             <NavLink
               to="/settings"
               title="Settings"

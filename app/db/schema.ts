@@ -306,6 +306,28 @@ export const lessonComments = sqliteTable(
   ]
 );
 
+export const lessonBookmarks = sqliteTable(
+  "lesson_bookmarks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    lessonId: integer("lesson_id")
+      .notNull()
+      .references(() => lessons.id),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => [
+    uniqueIndex("lesson_bookmarks_user_lesson_idx").on(
+      table.userId,
+      table.lessonId
+    ),
+  ]
+);
+
 export const streakActivities = sqliteTable("streak_activities", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id")
