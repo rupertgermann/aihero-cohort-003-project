@@ -77,7 +77,7 @@ import {
   FileText,
 } from "lucide-react";
 import { data, isRouteErrorResponse } from "react-router";
-import { z } from "zod";
+import * as v from "valibot";
 import { parseFormData, parseParams } from "~/lib/validation";
 import {
   getLessonCommentById,
@@ -87,78 +87,80 @@ import {
 } from "~/services/lessonCommentService";
 import { UserAvatar } from "~/components/user-avatar";
 
-const courseEditorParamsSchema = z.object({
-  courseId: z.coerce.number().int(),
+const courseEditorParamsSchema = v.object({
+  courseId: v.pipe(v.unknown(), v.transform(Number), v.integer()),
 });
 
-const courseEditorActionSchema = z.discriminatedUnion("intent", [
-  z.object({
-    intent: z.literal("update-title"),
-    title: z.string().trim().min(1, "Title cannot be empty."),
+const coerceInt = v.pipe(v.unknown(), v.transform(Number), v.integer());
+
+const courseEditorActionSchema = v.variant("intent", [
+  v.object({
+    intent: v.literal("update-title"),
+    title: v.pipe(v.string(), v.trim(), v.minLength(1, "Title cannot be empty.")),
   }),
-  z.object({
-    intent: z.literal("update-description"),
-    description: z.string().trim().min(1, "Description cannot be empty."),
+  v.object({
+    intent: v.literal("update-description"),
+    description: v.pipe(v.string(), v.trim(), v.minLength(1, "Description cannot be empty.")),
   }),
-  z.object({
-    intent: z.literal("update-status"),
-    status: z.nativeEnum(CourseStatus),
+  v.object({
+    intent: v.literal("update-status"),
+    status: v.enum(CourseStatus),
   }),
-  z.object({ intent: z.literal("update-price"), price: z.string() }),
-  z.object({ intent: z.literal("update-ppp-enabled"), pppEnabled: z.string() }),
-  z.object({
-    intent: z.literal("add-module"),
-    title: z.string().trim().min(1, "Module title cannot be empty."),
+  v.object({ intent: v.literal("update-price"), price: v.string() }),
+  v.object({ intent: v.literal("update-ppp-enabled"), pppEnabled: v.string() }),
+  v.object({
+    intent: v.literal("add-module"),
+    title: v.pipe(v.string(), v.trim(), v.minLength(1, "Module title cannot be empty.")),
   }),
-  z.object({
-    intent: z.literal("rename-module"),
-    moduleId: z.coerce.number().int(),
-    title: z.string().trim().min(1, "Module title cannot be empty."),
+  v.object({
+    intent: v.literal("rename-module"),
+    moduleId: coerceInt,
+    title: v.pipe(v.string(), v.trim(), v.minLength(1, "Module title cannot be empty.")),
   }),
-  z.object({
-    intent: z.literal("delete-module"),
-    moduleId: z.coerce.number().int(),
+  v.object({
+    intent: v.literal("delete-module"),
+    moduleId: coerceInt,
   }),
-  z.object({
-    intent: z.literal("add-lesson"),
-    moduleId: z.coerce.number().int(),
-    title: z.string().trim().min(1, "Lesson title cannot be empty."),
+  v.object({
+    intent: v.literal("add-lesson"),
+    moduleId: coerceInt,
+    title: v.pipe(v.string(), v.trim(), v.minLength(1, "Lesson title cannot be empty.")),
   }),
-  z.object({
-    intent: z.literal("rename-lesson"),
-    lessonId: z.coerce.number().int(),
-    title: z.string().trim().min(1, "Lesson title cannot be empty."),
+  v.object({
+    intent: v.literal("rename-lesson"),
+    lessonId: coerceInt,
+    title: v.pipe(v.string(), v.trim(), v.minLength(1, "Lesson title cannot be empty.")),
   }),
-  z.object({
-    intent: z.literal("reorder-modules"),
-    moduleIds: z.string().min(1, "Missing module IDs."),
+  v.object({
+    intent: v.literal("reorder-modules"),
+    moduleIds: v.pipe(v.string(), v.minLength(1, "Missing module IDs.")),
   }),
-  z.object({
-    intent: z.literal("reorder-lessons"),
-    moduleId: z.coerce.number().int(),
-    lessonIds: z.string().min(1, "Missing lesson IDs."),
+  v.object({
+    intent: v.literal("reorder-lessons"),
+    moduleId: coerceInt,
+    lessonIds: v.pipe(v.string(), v.minLength(1, "Missing lesson IDs.")),
   }),
-  z.object({
-    intent: z.literal("move-lesson"),
-    lessonId: z.coerce.number().int(),
-    targetModuleId: z.coerce.number().int(),
-    targetPosition: z.coerce.number().int(),
+  v.object({
+    intent: v.literal("move-lesson"),
+    lessonId: coerceInt,
+    targetModuleId: coerceInt,
+    targetPosition: coerceInt,
   }),
-  z.object({
-    intent: z.literal("delete-lesson"),
-    lessonId: z.coerce.number().int(),
+  v.object({
+    intent: v.literal("delete-lesson"),
+    lessonId: coerceInt,
   }),
-  z.object({
-    intent: z.literal("update-sales-copy"),
-    salesCopy: z.string().optional(),
+  v.object({
+    intent: v.literal("update-sales-copy"),
+    salesCopy: v.optional(v.string()),
   }),
-  z.object({
-    intent: z.literal("hide-comment"),
-    commentId: z.coerce.number().int(),
+  v.object({
+    intent: v.literal("hide-comment"),
+    commentId: coerceInt,
   }),
-  z.object({
-    intent: z.literal("restore-comment"),
-    commentId: z.coerce.number().int(),
+  v.object({
+    intent: v.literal("restore-comment"),
+    commentId: coerceInt,
   }),
 ]);
 

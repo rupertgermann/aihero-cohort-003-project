@@ -57,7 +57,7 @@ import { cn, formatDuration } from "~/lib/utils";
 import { renderMarkdown } from "~/lib/markdown.server";
 import { YouTubePlayer } from "~/components/youtube-player";
 import { data, isRouteErrorResponse } from "react-router";
-import { z } from "zod";
+import * as v from "valibot";
 import { resolveCountry } from "~/lib/country.server";
 import { checkPppAccess, COUNTRIES } from "~/lib/ppp";
 import { findPurchase } from "~/services/purchaseService";
@@ -72,22 +72,27 @@ import {
 } from "~/services/lessonCommentService";
 import { UserAvatar } from "~/components/user-avatar";
 
-const lessonParamsSchema = z.object({
-  slug: z.string().min(1),
-  lessonId: z.coerce.number().int(),
+const lessonParamsSchema = v.object({
+  slug: v.pipe(v.string(), v.minLength(1)),
+  lessonId: v.pipe(v.unknown(), v.transform(Number), v.integer()),
 });
 
-const markCompleteSchema = z.object({
-  intent: z.literal("mark-complete"),
+const markCompleteSchema = v.object({
+  intent: v.literal("mark-complete"),
 });
 
-const submitCommentSchema = z.object({
-  intent: z.literal("submit-comment"),
-  body: z.string().trim().min(1, "Comment cannot be empty.").max(1000),
+const submitCommentSchema = v.object({
+  intent: v.literal("submit-comment"),
+  body: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1, "Comment cannot be empty."),
+    v.maxLength(1000)
+  ),
 });
 
-const moderateCommentSchema = z.object({
-  commentId: z.coerce.number().int(),
+const moderateCommentSchema = v.object({
+  commentId: v.pipe(v.unknown(), v.transform(Number), v.integer()),
 });
 
 export function meta({ data: loaderData }: Route.MetaArgs) {
