@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useFetcher, useNavigate } from "react-router";
 import { Bell } from "lucide-react";
 import { cn } from "~/lib/utils";
@@ -35,6 +36,8 @@ export function NotificationBell({
   unreadCount,
 }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const markReadFetcher = useFetcher();
   const markAllReadFetcher = useFetcher();
@@ -43,17 +46,29 @@ export function NotificationBell({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
+        buttonRef.current?.contains(event.target as Node) ||
+        dropdownRef.current?.contains(event.target as Node)
       ) {
-        setIsOpen(false);
+        return;
       }
+      setIsOpen(false);
     }
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
+
+  function handleBellClick() {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPos({
+        top: rect.top,
+        left: rect.right + 8,
+      });
+    }
+    setIsOpen(!isOpen);
+  }
 
   function handleNotificationClick(notification: Notification) {
     if (!notification.isRead) {
@@ -78,9 +93,10 @@ export function NotificationBell({
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        onClick={handleBellClick}
         className="relative rounded-md p-1 text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         title="Notifications"
       >
@@ -92,55 +108,61 @@ export function NotificationBell({
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute left-full top-0 z-50 ml-2 w-80 rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <span className="text-sm font-semibold">Notifications</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="text-xs text-primary hover:underline"
-              >
-                Mark all as read
-              </button>
-            )}
-          </div>
-
-          <div className="max-h-80 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                No notifications
-              </div>
-            ) : (
-              notifications.map((notification) => (
+      {isOpen &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-50 w-80 rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+            style={{ top: dropdownPos.top, left: dropdownPos.left }}
+          >
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <span className="text-sm font-semibold">Notifications</span>
+              {unreadCount > 0 && (
                 <button
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={cn(
-                    "flex w-full flex-col gap-1 border-b border-border px-4 py-3 text-left transition-colors hover:bg-accent last:border-b-0",
-                    !notification.isRead && "bg-accent/50"
-                  )}
+                  onClick={handleMarkAllRead}
+                  className="text-xs text-primary hover:underline"
                 >
-                  <div className="flex items-center gap-2">
-                    {!notification.isRead && (
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {notification.title}
-                    </span>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {notification.message}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {timeAgo(notification.createdAt)}
-                  </span>
+                  Mark all as read
                 </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+              )}
+            </div>
+
+            <div className="max-h-80 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  No notifications
+                </div>
+              ) : (
+                notifications.map((notification) => (
+                  <button
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={cn(
+                      "flex w-full flex-col gap-1 border-b border-border px-4 py-3 text-left transition-colors hover:bg-accent last:border-b-0",
+                      !notification.isRead && "bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      {!notification.isRead && (
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                      )}
+                      <span className="text-sm font-medium">
+                        {notification.title}
+                      </span>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {notification.message}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {timeAgo(notification.createdAt)}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
