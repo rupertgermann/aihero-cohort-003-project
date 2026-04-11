@@ -36,7 +36,7 @@ export function NotificationBell({
   unreadCount,
 }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+  const [dropdownPos, setDropdownPos] = useState({ bottom: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const markReadFetcher = useFetcher();
@@ -63,7 +63,7 @@ export function NotificationBell({
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setDropdownPos({
-        top: rect.top,
+        bottom: window.innerHeight - rect.top,
         left: rect.right + 8,
       });
     }
@@ -113,7 +113,7 @@ export function NotificationBell({
           <div
             ref={dropdownRef}
             className="fixed z-50 w-80 rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
-            style={{ top: dropdownPos.top, left: dropdownPos.left }}
+            style={{ bottom: dropdownPos.bottom, left: dropdownPos.left }}
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <span className="text-sm font-semibold">Notifications</span>
